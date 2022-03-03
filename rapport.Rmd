@@ -9,22 +9,76 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+```{r work, include =FALSE, cache=FALSE}
+# set environment
+WORK = "~/3A_202120222/Valeurs extrêmes/Projet/"
+setwd(WORK)
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+library(dplyr)
+library(ggplot2)
+library(lubridate)
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+data <- load("data.RData")
 
-```{r cars}
-summary(cars)
+data_df <<- select(data_df, "date", "var2")
+data2_df <<- select(data2_df, "date", "var3", "var4")
+
 ```
+## Introduction
 
-## Including Plots
+Dans le cadre du projet de valeurs extrêmes, nous avons eu le projet N°2. Pour les tâches 1 à 5 nous avons donc travaillé avec var2 pour *data_df*, et pour la suite, nous avons travaillé avec var3 et var4 pour *data2_df*.
 
-You can also embed plots, for example:
+***
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
+#### Tâche 1
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Pour commencer, voici d'abord un résumé de nos données ainsi qu'un tracé temporel de toutes les données.
+```{r warning=FALSE, fig.align='center'}
+
+summary(data_df)
+
+ggplot(data = data_df,
+       mapping = aes(x = date, y = var2)) + geom_line() + labs(
+  title    = "Évolution temporelle de la variable étudiée",
+  subtitle = "Tracé sur la totalité des dates fournies, début des mesures en 1971",
+  x        = "Date",
+  y        = "Variable")
+
+# format date données : YYYY-MM-JJ
+
+date_debut <- as.Date("2010-01-01","%Y-%m-%j")
+date_fin <- as.Date("2019-12-31", "%Y-%m-%j")
+
+ggplot(data = data_df %>% filter(between(as.Date(date,origin="1970-01-01"), date_debut,date_fin)),
+       mapping = aes(x = date, y = var2)) + geom_line() + labs(
+  title    = "Évolution temporelle de la variable étudiée",
+  subtitle = "Période restreinte aux années 2010",
+  x        = "Date",
+  y        = "Variable")
+
+date_debut <- as.Date("2018-01-01","%Y-%m-%j")
+date_fin <- as.Date("2018-12-31", "%Y-%m-%j")
+ggplot(data = data_df %>% filter(between(as.Date(date,origin="1970-01-01"), date_debut,date_fin)),
+       mapping = aes(x = date, y = var2)) + geom_line()  + labs(
+  title    = "Évolution temporelle de la variable étudiée",
+  subtitle = "Tracé sur l'année 2018",
+  x        = "Date",
+  y        = "Variable")
+
+hist(data_df$var2, breaks = 15, main = "Histogramme de la variable", xlab = "var2", ylab="Fréquence")
+
+acf(data_df$var2, na.action = na.pass, xlab = "Lag (jours)", ylab="Auto-corrélation temporelle de var2", main="Auto-corrélation temporelle de la variable en fonction du lag")
+
+
+````
+
+Nous pouvons constater qu'il s'agit d'une variable avec une certaine saisonnalité, et qui semble atteindre ces valeurs les plus extrêmes en
+été. Tout cela, en plus de l'échelle de valeurs (de ~7 à ~37) laisse penser à une température. Il s'agit également d'une variable ayant une majorité de valeurs vers 25/26, donc plutôt une région chaude, et qui est auto-corrélée dans le temps de manière assez significative.
+
+### Tâche 2
+
+```` {r}
+
+
+````
+
