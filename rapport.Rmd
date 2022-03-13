@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r work, include =FALSE, cache=FALSE}
 # set environment
-WORK = "~/3A_202120222/Valeurs extrêmes/Projet/"
+WORK = "~/3A_202120222/Valeurs extrêmes/Projet/" #à modifier en local pour chacun
 setwd(WORK)
 
 library(dplyr)
@@ -20,8 +20,17 @@ library(lubridate)
 
 data <- load("data.RData")
 
-data_df <<- select(data_df, "date", "var2")
+data_df <<- select(data_df, "date", "var2") 
 data2_df <<- select(data2_df, "date", "var3", "var4")
+
+class(data_df$DATE)
+#transform to appropriate time class:
+data_df$date = as.POSIXlt(data_df$date)
+years = 1900 + data_df$date$year
+months = data_df$date$mon+1
+table(months)
+data_df$years = years
+data_df$months = months
 
 ```
 ## Introduction
@@ -70,7 +79,7 @@ hist(data_df$var2, breaks = 15, main = "Histogramme de la variable", xlab = "var
 acf(data_df$var2, na.action = na.pass, xlab = "Lag (jours)", ylab="Auto-corrélation temporelle de var2", main="Auto-corrélation temporelle de la variable en fonction du lag")
 
 
-````
+```
 
 Nous pouvons constater qu'il s'agit d'une variable avec une certaine saisonnalité, et qui semble atteindre ces valeurs les plus extrêmes en
 été. Tout cela, en plus de l'échelle de valeurs (de ~7 à ~37) laisse penser à une température. Il s'agit également d'une variable ayant une majorité de valeurs vers 25/26, donc plutôt une région chaude, et qui est auto-corrélée dans le temps de manière assez significative.
@@ -79,6 +88,50 @@ Nous pouvons constater qu'il s'agit d'une variable avec une certaine saisonnalit
 
 ```` {r}
 
+extract_function = function(vec, nr_of_na_allowed = 30){
+  if(sum(is.na(vec)) > nr_of_na_allowed){
+    return(NA)
+  }else{
+    return(max(vec, na.rm = TRUE))
+  }
+}
+
+
+tmp = aggregate(data_df$var2, by = list(year = data_df$years), FUN = extract_function)
+mean(is.na(tmp$x)) # proportion of years with too many NA data
+# observations of maxima
+obs = tmp$x
+plot(tmp$year, tmp$x, type = "b", pch = 19, xlab = "Year", ylab = "Maximum")
+
+ggplot(data = tmp,
+       mapping = aes(x = year, y = x)) + geom_line()  + labs(
+  title    = "Maxima annuel sur les années avec moins de 30 NA",
+  x        = "Date",
+  y        = "Maxima")
+
+tmp = aggregate(data_df$var2, by = list(year = data_df$years), FUN = extract_function(10))
+mean(is.na(tmp$x)) # proportion of years with too many NA data
+# observations of maxima
+obs = tmp$x
+plot(tmp$year, tmp$x, type = "b", pch = 19, xlab = "Year", ylab = "Maximum")
+
+ggplot(data = tmp,
+       mapping = aes(x = year, y = x)) + geom_line()  + labs(
+  title    = "Maxima annuel sur les années avec moins de 10 NA",
+  x        = "Date",
+  y        = "Maxima")
+
+tmp = aggregate(data_df$var2, by = list(year = data_df$years), FUN = extract_function(5))
+mean(is.na(tmp$x)) # proportion of years with too many NA data
+# observations of maxima
+obs = tmp$x
+plot(tmp$year, tmp$x, type = "b", pch = 19, xlab = "Year", ylab = "Maximum")
+
+ggplot(data = tmp,
+       mapping = aes(x = year, y = x)) + geom_line()  + labs(
+  title    = "Maxima annuel sur les années avec moins de 5 NA",
+  x        = "Date",
+  y        = "Maxima")
 
 ````
 
