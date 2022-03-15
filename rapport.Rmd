@@ -2,7 +2,11 @@
 title: "Projet sujet 2"
 author: "Omar Himych, Morgane Roy"
 date: "03/03/2022"
-output: html_document
+output:
+  html_document:
+    toc: yes
+    toc_depth: 4
+    number_sections: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -17,11 +21,14 @@ setwd(WORK)
 library(dplyr)
 library(ggplot2)
 library(lubridate)
+library(extRemes)
 
 data <- load("data.RData")
 
 data_df <<- select(data_df, "date", "var2") 
 data2_df <<- select(data2_df, "date", "var3", "var4")
+
+data_df_plot <- data_df
 
 class(data_df$DATE)
 #transform to appropriate time class:
@@ -33,20 +40,20 @@ data_df$years = years
 data_df$months = months
 
 ```
-## Introduction
+# Introduction
 
 Dans le cadre du projet de valeurs extrêmes, nous avons eu le projet N°2. Pour les tâches 1 à 5 nous avons donc travaillé avec var2 pour *data_df*, et pour la suite, nous avons travaillé avec var3 et var4 pour *data2_df*.
 
 ***
 
-#### Tâche 1
+# Tâche 1
 
 Pour commencer, voici d'abord un résumé de nos données ainsi qu'un tracé temporel de toutes les données.
 ```{r warning=FALSE, fig.align='center'}
 
 summary(data_df)
 
-ggplot(data = data_df,
+ggplot(data = data_df_plot,
        mapping = aes(x = date, y = var2)) + geom_line() + labs(
   title    = "Évolution temporelle de la variable étudiée",
   subtitle = "Tracé sur la totalité des dates fournies, début des mesures en 1971",
@@ -58,7 +65,7 @@ ggplot(data = data_df,
 date_debut <- as.Date("2010-01-01","%Y-%m-%j")
 date_fin <- as.Date("2019-12-31", "%Y-%m-%j")
 
-ggplot(data = data_df %>% filter(between(as.Date(date,origin="1970-01-01"), date_debut,date_fin)),
+ggplot(data = data_df_plot %>% filter(between(as.Date(date,origin="1970-01-01"), date_debut,date_fin)),
        mapping = aes(x = date, y = var2)) + geom_line() + labs(
   title    = "Évolution temporelle de la variable étudiée",
   subtitle = "Période restreinte aux années 2010",
@@ -67,7 +74,7 @@ ggplot(data = data_df %>% filter(between(as.Date(date,origin="1970-01-01"), date
 
 date_debut <- as.Date("2018-01-01","%Y-%m-%j")
 date_fin <- as.Date("2018-12-31", "%Y-%m-%j")
-ggplot(data = data_df %>% filter(between(as.Date(date,origin="1970-01-01"), date_debut,date_fin)),
+ggplot(data = data_df_plot %>% filter(between(as.Date(date,origin="1970-01-01"), date_debut,date_fin)),
        mapping = aes(x = date, y = var2)) + geom_line()  + labs(
   title    = "Évolution temporelle de la variable étudiée",
   subtitle = "Tracé sur l'année 2018",
@@ -84,9 +91,9 @@ acf(data_df$var2, na.action = na.pass, xlab = "Lag (jours)", ylab="Auto-corréla
 Nous pouvons constater qu'il s'agit d'une variable avec une certaine saisonnalité, et qui semble atteindre ces valeurs les plus extrêmes en
 été. Tout cela, en plus de l'échelle de valeurs (de ~7 à ~37) laisse penser à une température. Il s'agit également d'une variable ayant une majorité de valeurs vers 25/26, donc plutôt une région chaude, et qui est auto-corrélée dans le temps de manière assez significative.
 
-### Tâche 2
+# Tâche 2
 
-```` {r}
+```` {r, fig.align='center'}
 
 extract_function = function(vec, nr_of_na_allowed = 30){
   if(sum(is.na(vec)) > nr_of_na_allowed){
@@ -101,37 +108,38 @@ tmp = aggregate(data_df$var2, by = list(year = data_df$years), FUN = extract_fun
 mean(is.na(tmp$x)) # proportion of years with too many NA data
 # observations of maxima
 obs = tmp$x
-plot(tmp$year, tmp$x, type = "b", pch = 19, xlab = "Year", ylab = "Maximum")
 
 ggplot(data = tmp,
        mapping = aes(x = year, y = x)) + geom_line()  + labs(
   title    = "Maxima annuel sur les années avec moins de 30 NA",
-  x        = "Date",
-  y        = "Maxima")
+  x        = "Year",
+  y        = "Maximum")
 
-tmp = aggregate(data_df$var2, by = list(year = data_df$years), FUN = extract_function(10))
-mean(is.na(tmp$x)) # proportion of years with too many NA data
-# observations of maxima
-obs = tmp$x
-plot(tmp$year, tmp$x, type = "b", pch = 19, xlab = "Year", ylab = "Maximum")
-
-ggplot(data = tmp,
-       mapping = aes(x = year, y = x)) + geom_line()  + labs(
-  title    = "Maxima annuel sur les années avec moins de 10 NA",
-  x        = "Date",
-  y        = "Maxima")
-
-tmp = aggregate(data_df$var2, by = list(year = data_df$years), FUN = extract_function(5))
-mean(is.na(tmp$x)) # proportion of years with too many NA data
-# observations of maxima
-obs = tmp$x
-plot(tmp$year, tmp$x, type = "b", pch = 19, xlab = "Year", ylab = "Maximum")
-
-ggplot(data = tmp,
-       mapping = aes(x = year, y = x)) + geom_line()  + labs(
-  title    = "Maxima annuel sur les années avec moins de 5 NA",
-  x        = "Date",
-  y        = "Maxima")
 
 ````
 
+On constate une hausse des maxima annuels sur les années avec moins de 30 données NA.
+Faisons maintenant l'estimation du modèle GEV stationnaire puis du modèle non-stationnaire.
+
+```` {r, fig.align='center', warning=FALSE}
+
+fit = fevd(na.omit(obs), type = "GEV", method = "MLE", period.basis = "year", use.phi = TRUE)
+summary(fit)
+
+fit_nonstationnaire = fevd(na.omit(obs), data = data.frame(year = na.omit(tmp)$year), scale.fun = ~1+year, location.fun = ~1+year, type = "GEV", method = "MLE", period.basis = "year", use.phi = TRUE)
+summary(fit_nonstationnaire) 
+
+````
+
+Le modèle non-stationnaire a un output d'AIC plus faible, ce qui indique qu'il s'agit d'un modèle qui correspond mieux.
+TODO : climate change effect ?
+
+# Tâche 3
+
+```` {r}
+
+````
+
+# Tâche 4
+
+# Tâche 5
