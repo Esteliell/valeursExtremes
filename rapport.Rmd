@@ -134,6 +134,27 @@ summary(fit_nonstationnaire)
 Le modèle non-stationnaire a un output d'AIC plus faible, ce qui indique qu'il s'agit d'un modèle qui correspond mieux.
 TODO : climate change effect ?
 
+Calculons maintenant le 100-year return pour le modèle stationnaire et le modèle non-stationnaire pour 2020.
+````{r}
+# Estimate a 100-year return level for var2 for 2020. 
+T_2020 = 31 * 10 # in 10 years, we have T days in January
+
+# For the shape parameter, we simply use the average of estimates for the month of January:
+sigma_jan = mean(exp(sigma0 + covar1[1:31] + sigma2 * covar2[1:31]))
+sigma_jan
+xi = fit$results$par[4]
+xi
+names(xi) = NULL
+u = u_by_month[1]  #threshold in January month
+
+# By construction of the monthly thresholds above, the exceedance probability is as follows:
+p_u = 1 - 0.975
+x_T = u + sigma_jan * ((T_january*p_u)^xi-1)/xi
+x_T 
+# 10 year return level for daily January temperatures is estimated at 18.2 degrees Celsius.
+
+````
+
 # Tâche 3
 
 ```` {r}
@@ -143,3 +164,30 @@ TODO : climate change effect ?
 # Tâche 4
 
 # Tâche 5
+
+````{r}
+
+class(data2_df$date)
+#transform to appropriate time class:
+data2_df$date = as.POSIXlt(data2_df$date)
+years = 1900 + data2_df$date$year
+months = data2_df$date$mon+1
+table(months)
+data2_df$years = years
+data2_df$months = months
+
+chiplot(cbind(data2_df$var3, data2_df$var4), qlim = c(0.8, .9995), xlim = c(0.8, .9995), which = 1)
+
+
+````
+On constate bien que la tail correlation diminue très légèrement lorsque le palier quantile u augmente, et reste bien différent de 0 pour des quantiles élevés. On peut donc supposer qu'il n'y a pas de dépendance asymptotique.
+
+```` {r}
+
+M1 = aggregate(data2_df$var3, by = list(year = data2_df$years), FUN = max)$x
+M2 = aggregate(data2_df$var4, by = list(year = data2_df$years), FUN = max)$x
+
+omega = 0:26/26 # define values where to evaluate A
+pickands = abvnonpar(omega, data = cbind(M1,M2), method = "cfg", plot = TRUE) 
+````
+On constate que les deux variables ne sont ni 100% indépendantes, ni 100% dépendantes. Cependant, elles paraissent plus indépendantes que l'inverse. On peut en déduire que si elles s'influencent entre elles, elles ne sont pas entièrement influentes sur l'autre.
