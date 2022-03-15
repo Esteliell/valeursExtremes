@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r work, include =FALSE, cache=FALSE}
 # set environment
-WORK = "~/3A_202120222/Valeurs extrÃªmes/Projet/"
+WORK = "C:/Users/rachid/Desktop/Projet_Option/Dossier R/ValeursExtremes"
 setwd(WORK)
 
 library(dplyr)
@@ -33,52 +33,136 @@ Dans le cadre du projet de valeurs extrÃªmes, nous avons eu le projet NÂ°2. Pour
 #### TÃ¢che 1
 
 Pour commencer, voici d'abord un rÃ©sumÃ© de nos donnÃ©es ainsi qu'un tracÃ© temporel de toutes les donnÃ©es.
-```{r warning=FALSE, fig.align='center'}
+```{r Analyse statistque suplémentaire}
 
-summary(data_df)
+hist(na.omit(data_df$var2), breaks = 15, main = "Histogramme de la variable", xlab = "var2", ylab="FrÃ©quence", freq=F)
 
-ggplot(data = data_df,
-       mapping = aes(x = date, y = var2)) + geom_line() + labs(
-  title    = "Ã‰volution temporelle de la variable Ã©tudiÃ©e",
-  subtitle = "TracÃ© sur la totalitÃ© des dates fournies, dÃ©but des mesures en 1971",
-  x        = "Date",
-  y        = "Variable")
+lines(density(na.omit(data_df$var2)), lwd=2, col='red')
 
-# format date donnÃ©es : YYYY-MM-JJ
-
-date_debut <- as.Date("2010-01-01","%Y-%m-%j")
-date_fin <- as.Date("2019-12-31", "%Y-%m-%j")
-
-ggplot(data = data_df %>% filter(between(as.Date(date,origin="1970-01-01"), date_debut,date_fin)),
-       mapping = aes(x = date, y = var2)) + geom_line() + labs(
-  title    = "Ã‰volution temporelle de la variable Ã©tudiÃ©e",
-  subtitle = "PÃ©riode restreinte aux annÃ©es 2010",
-  x        = "Date",
-  y        = "Variable")
-
-date_debut <- as.Date("2018-01-01","%Y-%m-%j")
-date_fin <- as.Date("2018-12-31", "%Y-%m-%j")
-ggplot(data = data_df %>% filter(between(as.Date(date,origin="1970-01-01"), date_debut,date_fin)),
-       mapping = aes(x = date, y = var2)) + geom_line()  + labs(
-  title    = "Ã‰volution temporelle de la variable Ã©tudiÃ©e",
-  subtitle = "TracÃ© sur l'annÃ©e 2018",
-  x        = "Date",
-  y        = "Variable")
-
-hist(data_df$var2, breaks = 15, main = "Histogramme de la variable", xlab = "var2", ylab="FrÃ©quence")
-
-acf(data_df$var2, na.action = na.pass, xlab = "Lag (jours)", ylab="Auto-corrÃ©lation temporelle de var2", main="Auto-corrÃ©lation temporelle de la variable en fonction du lag")
+pacf(data_df$var2, na.action = na.pass, xlab = "Lag (jours)", ylab="Auto-corrÃ©lation temporelle de var2", main="Auto-corrÃ©lation temporelle de la variable en fonction du lag")
 
 
-````
+```
 
-Nous pouvons constater qu'il s'agit d'une variable avec une certaine saisonnalitÃ©, et qui semble atteindre ces valeurs les plus extrÃªmes en
-Ã©tÃ©. Tout cela, en plus de l'Ã©chelle de valeurs (de ~7 Ã  ~37) laisse penser Ã  une tempÃ©rature. Il s'agit Ã©galement d'une variable ayant une majoritÃ© de valeurs vers 25/26, donc plutÃ´t une rÃ©gion chaude, et qui est auto-corrÃ©lÃ©e dans le temps de maniÃ¨re assez significative.
+
+Les coeffcients autocorrelation partiels se coupent rapidement juste après 5 ou 6 lags ce qui montre que la corrélation n'est pas  forte entre des observations de la série chronologique séparées intermediairement.
 
 ### TÃ¢che 2
+ Réponse question (a) :
+ 
+Cette fois, nous modélisons les valeurs extrêmes da la variable 2 en utilisant l'approche Peaks-over-Threshold. Premièrement, nous allons  déterminer le seuil approprié *u*, par la méthode graphique de l'excès moyen.
 
-```` {r}
+Tout d'abord, nous importons les bibliothèques nécessaires 
+
+```{r library}
+
+library(extRemes)
+library(evd)
+
+```
+
+### Mean excess plot
+
+Le graphe d'excès moyen est un outil visuel permettant de choisir un seuil convenable celle qui correspondante à un comportement linéaire de l'excès moyen. Ce résultat est basé sur la propriété de stabilité du seuil du GPD.
+
+```{r mean plot}
+
+evd::mrlplot(na.omit(data_df$var2), tlim = c(quantile(na.omit(data_df$var2), .5), quantile(na.omit(data_df$var2), .995)))
+abline(v=29.45,col='red') # le seuil
+abline(h=1,col='blue') # ordonée correspondante
+
+```
+D'après le resultat précedent, nous pouvons estimer le seuil à u=29.45 puisque le comportement se stabilise approximativement à partir de cette valeur.
+
+reponse question (b)
+
+Nous sommes toujours dans le cadre univarié (variable 2), mais avec l'hypothèse des observations non indépendantes.L'autocorrélation caractérise les probabilités de co-occurrence de valeurs élevées au décalage temporel h.
 
 
-````
+```{r tail autocorrelation function}
+
+prob = .9 # probabilité pour le quantile à utiliser comme seuil
+tmp = atdf(as.ts(na.omit(data_df$var2)), u = prob, plot = FALSE, lag.max = 50, type = "rho")
+par(mar = c(5, 5, .5, .5), cex.lab = 2, cex.axis = 2, lwd = 2, cex = 1)
+plot(tmp, main = "", xlab = "h", ylab = expression(chi(u,h)))
+lines(c(0, 100), rep(1-prob,2), lwd = 2, lty = 2, col = "red")
+
+```
+
+Nous pouvons constater que la dépendance temporelle extrême semble assez forte sur des décalages relativement importants.
+
+Ensuite, on va essayer d'augmenter le seuil 
+
+```{r tail autocorrelation function (cas 2)}
+
+prob = .995 # augmenter le seuil
+tmp = atdf(as.ts(na.omit(data_df$var2)), u = prob, plot = FALSE, lag.max = 50, type = "rho")
+par(mar = c(5, 5, .5, .5), cex.lab = 2, cex.axis = 2, lwd = 2, cex = 1)
+plot(tmp, main = "", xlab = "h", ylab = expression(chi(u,h)))
+lines(c(0, 100), rep(1-prob,2), lwd = 2, lty = 2, col = "red")
+
+```
+
+La dépendance temporelle semble diminuer lorsqu'on fixe seuil plus élevé. nous pouvons améliorer encore ce résultat en considérant le cas non-stationnaire et filtrer les données par mois ou par saison.
+
+
+Réponse question (c)
+
+nous allons regouper les valeurs qui dépassent le seuil dans des clusters par un longeur d'intervalle égal à 1
+
+```{r dégroupage des dépacements de seuil}
+
+cl = clusters(data_df$var2, u =quantile(na.omit(data_df$var2), 0.995) , r = 1)
+
+length(cl) # nombre des groupes(clusters)
+
+cl[[21]]
+
+```
+Donc, le nombre des clusters est : 22
+
+```{r plot clusters}
+clusters(data_df$var2, u =quantile(na.omit(data_df$var2), 0.995) , r = 1, plot = TRUE, col = "red", lvals = FALSE)
+
+```
+
+### GPD model estimation 
+
+
+Réponse question (d)
+
+nous estimons le modèle GPD pour la variable 2:
+
+alors, nous allons déterminer le seuil analytiquement par la fonction quantile à 90%
+
+```{r}
+u = quantile(na.omit(data_df$var2), 0.995)
+u # le seuil...
+```
+
+Donc, la valeur obtenue est proche que celle extraite graphiquement (environ du 30).
+
+
+```{r estimation de GPD}
+sum(na.omit(data_df$var2)> u, na.rm = TRUE) # nombre de dépassements
+
+fit2 = fevd(x = na.omit(data_df$var2),threshold = u, type = "GP", method = "MLE", use.phi = TRUE)
+summary(fit2)
+
+plot(fit2)
+
+# la densité de notre modèle:
+
+plot(fit2, type = "density", main = "Empirical and theoretical density")
+
+# QQ plot du modèle :
+
+plot(fit2, type = "qq", main = "QQ-plot")
+
+```
+
+
+Les commentaires :
+
+le modèle théorique est totalement loin du modèle emprique et cela est clair sur qq-plot ainsi que le graphe de la densité.En revanche, le modèle obtenu par approche block maxima a un AIC plus grande que celui la.
 
