@@ -22,6 +22,7 @@ library(dplyr)
 library(ggplot2)
 library(lubridate)
 library(extRemes)
+library(evd)
 
 data <- load("data.RData")
 
@@ -125,20 +126,25 @@ Faisons maintenant l'estimation du modèle GEV stationnaire puis du modèle non-
 
 fit = fevd(na.omit(obs), type = "GEV", method = "MLE", period.basis = "year", use.phi = TRUE)
 summary(fit)
+plot(fit)
 
-fit_nonstationnaire = fevd(na.omit(obs), data = data.frame(year = na.omit(tmp)$year), scale.fun = ~1+year, location.fun = ~1+year, type = "GEV", method = "MLE", period.basis = "year", use.phi = TRUE)
-summary(fit_nonstationnaire) 
+fit_nonstationnaire1 = fevd(na.omit(obs), data = data.frame(year = na.omit(tmp)$year), scale.fun = ~1+year, location.fun = ~1+year, type = "GEV", method = "MLE", period.basis = "year", use.phi = TRUE)
+summary(fit_nonstationnaire1) 
+plot(fit_nonstationnaire1)
 
 ````
 
 Le modèle non-stationnaire a un output d'AIC plus faible, ce qui indique qu'il s'agit d'un modèle qui correspond mieux.
-TODO : climate change effect ?
+TODO : climate change effect ? OUI sûrement car les maxima ont augmenté
 
 Calculons maintenant le 100-year return pour le modèle stationnaire et le modèle non-stationnaire pour 2020.
 ````{r}
-# Estimate a 100-year return level for var2 for 2020. 
-T_2020 = 31 * 10 # in 10 years, we have T days in January
+# Estimate a 100-year return level for daily TAVG for the month January. 
+T_january = 31 * 100 # in 100 years, we have T days in January
 
+
+covar1 = cos(1:366/366*2*pi)
+covar2 = sin(1:366/366*2*pi)
 # For the shape parameter, we simply use the average of estimates for the month of January:
 sigma_jan = mean(exp(sigma0 + covar1[1:31] + sigma2 * covar2[1:31]))
 sigma_jan
@@ -151,7 +157,7 @@ u = u_by_month[1]  #threshold in January month
 p_u = 1 - 0.975
 x_T = u + sigma_jan * ((T_january*p_u)^xi-1)/xi
 x_T 
-# 10 year return level for daily January temperatures is estimated at 18.2 degrees Celsius.
+
 
 ````
 
@@ -162,6 +168,15 @@ x_T
 ````
 
 # Tâche 4
+
+Arguments pris en compte :
+- Aucune température sous 6°C
+- Moyenne vers 26
+- Saisonnalité vers l'été, un peu avant
+- 3/4 des températures au-dessus de 22°C
+- Il fait déjà environ 25/30  en mai
+
+==> Riyad Arabie Saoudite
 
 # Tâche 5
 
@@ -191,3 +206,4 @@ omega = 0:26/26 # define values where to evaluate A
 pickands = abvnonpar(omega, data = cbind(M1,M2), method = "cfg", plot = TRUE) 
 ````
 On constate que les deux variables ne sont ni 100% indépendantes, ni 100% dépendantes. Cependant, elles paraissent plus indépendantes que l'inverse. On peut en déduire que si elles s'influencent entre elles, elles ne sont pas entièrement influentes sur l'autre.
+
