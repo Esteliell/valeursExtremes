@@ -9,8 +9,14 @@ output:
     number_sections: yes
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include = FALSE}
+# Setup of options for the rmarkdown document
+knitr::opts_chunk$set(echo = TRUE, # By default, codes are shown
+                      warning = FALSE, # Warnings are not printed
+                      message = FALSE, # Messages are not printed
+                      cache = TRUE,
+                      out.width = "90%") # Codes results are cached into a 
+# dedicated _cache directory which should be ignored by git (and emptied regularly)
 ```
 
 ```{r work, include =FALSE, cache=FALSE}
@@ -89,8 +95,7 @@ acf(data_df$var2, na.action = na.pass, xlab = "Lag (jours)", ylab="Auto-corréla
 
 ```
 
-Nous pouvons constater qu'il s'agit d'une variable avec une certaine saisonnalité, et qui semble atteindre ces valeurs les plus extrêmes en
-été. Tout cela, en plus de l'échelle de valeurs (de ~7 à ~37) laisse penser à une température. Il s'agit également d'une variable ayant une majorité de valeurs vers 25/26, donc plutôt une région chaude, et qui est auto-corrélée dans le temps de manière assez significative.
+Nous pouvons constater qu'il s'agit d'une variable avec une certaine saisonnalité, et qui semble atteindre ces valeurs les plus extrêmes en été. Tout cela, en plus de l'échelle de valeurs (de ~7 à ~37) laisse penser à une température. Il s'agit également d'une variable ayant une majorité de valeurs vers 25/26, donc plutôt une région chaude, et qui est auto-corrélée dans le temps de manière assez significative.
 
 # Tâche 2
 
@@ -126,21 +131,23 @@ Faisons maintenant l'estimation du modèle GEV stationnaire puis du modèle non-
 
 fit = fevd(na.omit(obs), type = "GEV", method = "MLE", period.basis = "year", use.phi = TRUE)
 summary(fit)
-plot(fit)
+plot(fit, type="density", main="")
 
 fit_nonstationnaire1 = fevd(na.omit(obs), data = data.frame(year = na.omit(tmp)$year), scale.fun = ~1+year, location.fun = ~1+year, type = "GEV", method = "MLE", period.basis = "year", use.phi = TRUE)
 summary(fit_nonstationnaire1) 
-plot(fit_nonstationnaire1)
+plot(fit_nonstationnaire1, type="density", main="")
 
 ````
 
-Le modèle non-stationnaire a un output d'AIC plus faible, ce qui indique qu'il s'agit d'un modèle qui correspond mieux.
-TODO : climate change effect ? OUI sûrement car les maxima ont augmenté
+Le modèle non-stationnaire a un output d'AIC et de BIC plus faibles, ce qui indique qu'il s'agit d'un modèle qui correspond mieux. On le voit également avec le graphique de densité, où le modèle correspond beaucoup mieux aux données dans le cas du modèle non-stationnaire.
+
+Comme nous avons pu constater que les maxima annuels ont récemment augmenté, ce qui peut être expliqué par le changement climatique dans le cas d'une températuer - notre supposition pour notre variable, il n'est pas étonnant que le modèle non-stationnaire soit plus correct.
+
 
 Calculons maintenant le 100-year return pour le modèle stationnaire et le modèle non-stationnaire pour 2020.
-````{r}
-# Estimate a 100-year return level for daily TAVG for the month January. 
-T_january = 31 * 100 # in 100 years, we have T days in January
+````{r, eval=FALSE}
+# Estimate a 100-year return level for var 2 for the year 2020. 
+T_2020 = 366 # in 100 years, we have T days in January
 
 
 covar1 = cos(1:366/366*2*pi)
@@ -159,8 +166,15 @@ x_T = u + sigma_jan * ((T_january*p_u)^xi-1)/xi
 x_T 
 
 
+plot(fit_nonstationnaire1, type="rl",main="", rperiods=100)
+
+
 ````
 
+````{r}
+
+
+````
 # Tâche 3
 
 ```` {r}
@@ -169,14 +183,19 @@ x_T
 
 # Tâche 4
 
-Arguments pris en compte :
-- Aucune température sous 6°C
-- Moyenne vers 26
-- Saisonnalité vers l'été, un peu avant
-- 3/4 des températures au-dessus de 22°C
-- Il fait déjà environ 25/30  en mai
+Nous soupçonions donc que notre variable soit celle d'une température *(cf Tâche 1)*. Nous soulignons par ailleurs les faits suivants :
 
-==> Riyad Arabie Saoudite
+- Moyenne à 25°C et médiane à 26°C
+- Aucune température sous 6°C
+- 3/4 des températures au-dessus de 22°C
+
+Nous hésitions donc entre la température moyenne à Riyad en Arabie Saoudite, ou la température maximale à Madrid en Espagne. Cependant, en considérant également que :
+
+- Saisonnalité vers l'été, un peu avant
+- La variable vaut déjà 25 à 30°C  en mai *(cf Tâche 1, tracé sur l'année 2018)*
+
+Nous excluons alors la possibilité de la température maximale de Madrid, car même s'il s'agit d'une région bien plus chaude que la France, un mois de mai à 25/30°C nous paraît bien élevé.
+Nous en concluons donc que var2 correspond à la température moyenne à Riyad, Arabie Saoudite.
 
 # Tâche 5
 
@@ -195,6 +214,7 @@ chiplot(cbind(data2_df$var3, data2_df$var4), qlim = c(0.8, .9995), xlim = c(0.8,
 
 
 ````
+
 On constate bien que la tail correlation diminue très légèrement lorsque le palier quantile u augmente, et reste bien différent de 0 pour des quantiles élevés. On peut donc supposer qu'il n'y a pas de dépendance asymptotique.
 
 ```` {r}
@@ -205,5 +225,19 @@ M2 = aggregate(data2_df$var4, by = list(year = data2_df$years), FUN = max)$x
 omega = 0:26/26 # define values where to evaluate A
 pickands = abvnonpar(omega, data = cbind(M1,M2), method = "cfg", plot = TRUE) 
 ````
+
 On constate que les deux variables ne sont ni 100% indépendantes, ni 100% dépendantes. Cependant, elles paraissent plus indépendantes que l'inverse. On peut en déduire que si elles s'influencent entre elles, elles ne sont pas entièrement influentes sur l'autre.
+
+Maintenant nous allons estimer plusieurs modèles max-stables (Huesler-Reiss et logistic) et les comparer.
+
+````{r}
+
+fit1 = fbvevd(cbind(M1,M2), model = "log")
+fit1
+
+fit2 = fbvevd(cbind(M1,M2), model = "hr")
+fit2
+
+````
+La différence d'AIC est très légère, mais elle laisse malgré tout voir que que le modèle max-stable d'Huesler-Reiss est plus adapté.
 
