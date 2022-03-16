@@ -1,0 +1,165 @@
+---
+title: "Projet sujet 2"
+author: "Omar Himych, Morgane Roy"
+date: "03/03/2022"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 4
+    number_sections: yes
+---
+
+```{r setup, include = FALSE}
+# Setup of options for the rmarkdown document
+knitr::opts_chunk$set(echo = TRUE, # By default, codes are shown
+                      warning = FALSE, # Warnings are not printed
+                      message = FALSE, # Messages are not printed
+                      cache = TRUE,
+                      out.width = "90%") # Codes results are cached into a 
+# dedicated _cache directory which should be ignored by git (and emptied regularly)
+```
+
+```{r work, include =FALSE, cache=FALSE}
+# set environment
+WORK = "C:/Users/rachid/Desktop/Projet_Option/Dossier R/ValeursExtremes"  #à modifier en local pour chacun
+setwd(WORK)
+
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(extRemes)
+library(evd)
+
+data <- load("data.RData")
+
+data_df <<- select(data_df, "date", "var2") 
+data2_df <<- select(data2_df, "date", "var3", "var4")
+
+data_df_plot <- data_df
+
+class(data_df$DATE)
+#transform to appropriate time class:
+data_df$date = as.POSIXlt(data_df$date)
+years = 1900 + data_df$date$year
+months = data_df$date$mon+1
+table(months)
+data_df$years = years
+data_df$months = months
+
+```
+# Introduction
+
+Dans le cadre du projet de valeurs extrêmes, nous avons eu le projet N°2. Pour les tâches 1 à 5 nous avons donc travaillé avec var2 pour *data_df*, et pour la suite, nous avons travaillé avec var3 et var4 pour *data2_df*.
+
+***
+
+# Tâche 1
+
+Pour commencer, voici d'abord un résumé de nos données ainsi qu'un tracé temporel de toutes les données.
+```{r warning=FALSE, fig.align='center'}
+
+summary(data_df)
+
+ggplot(data = data_df_plot,
+       mapping = aes(x = date, y = var2)) + geom_line() + labs(
+  title    = "Évolution temporelle de la variable étudiée",
+  subtitle = "Tracé sur la totalité des dates fournies, début des mesures en 1971",
+  x        = "Date",
+  y        = "Variable")
+
+# format date données : YYYY-MM-JJ
+
+date_debut <- as.Date("2010-01-01","%Y-%m-%j")
+date_fin <- as.Date("2019-12-31", "%Y-%m-%j")
+
+ggplot(data = data_df_plot %>% filter(between(as.Date(date,origin="1970-01-01"), date_debut,date_fin)),
+       mapping = aes(x = date, y = var2)) + geom_line() + labs(
+  title    = "Évolution temporelle de la variable étudiée",
+  subtitle = "Période restreinte aux années 2010",
+  x        = "Date",
+  y        = "Variable")
+
+date_debut <- as.Date("2018-01-01","%Y-%m-%j")
+date_fin <- as.Date("2018-12-31", "%Y-%m-%j")
+ggplot(data = data_df_plot %>% filter(between(as.Date(date,origin="1970-01-01"), date_debut,date_fin)),
+       mapping = aes(x = date, y = var2)) + geom_line()  + labs(
+  title    = "Évolution temporelle de la variable étudiée",
+  subtitle = "Tracé sur l'année 2018",
+  x        = "Date",
+  y        = "Variable")
+
+hist(data_df$var2, breaks = 15, main = "Histogramme de la variable", xlab = "var2", ylab="Fréquence")
+
+acf(data_df$var2, na.action = na.pass, xlab = "Lag (jours)", ylab="Auto-corrélation temporelle de var2", main="Auto-corrélation temporelle de la variable en fonction du lag")
+
+
+```
+
+Nous pouvons constater qu'il s'agit d'une variable avec une certaine saisonnalité, et qui semble atteindre ces valeurs les plus extrêmes en été. Tout cela, en plus de l'échelle de valeurs (de ~7 à ~37) laisse penser à une température. Il s'agit également d'une variable ayant une majorité de valeurs vers 25/26, donc plutôt une région chaude, et qui est auto-corrélée dans le temps de manière assez significative.
+
+# Tâche 2
+
+```` {r, fig.align='center'}
+
+extract_function = function(vec, nr_of_na_allowed = 30){
+  if(sum(is.na(vec)) > nr_of_na_allowed){
+    return(NA)
+  }else{
+    return(max(vec, na.rm = TRUE))
+  }
+}
+
+
+tmp = aggregate(data_df$var2, by = list(year = data_df$years), FUN = extract_function)
+mean(is.na(tmp$x)) # proportion of years with too many NA data
+# observations of maxima
+obs = tmp$x
+
+ggplot(data = tmp,
+       mapping = aes(x = year, y = x)) + geom_line()  + labs(
+  title    = "Maxima annuel sur les années avec moins de 30 NA",
+  x        = "Year",
+  y        = "Maximum")
+
+
+````
+
+On constate une hausse des maxima annuels sur les années avec moins de 30 données NA.
+Faisons maintenant l'estimation du modèle GEV stationnaire puis du modèle non-stationnaire.
+
+```` {r, fig.align='center', warning=FALSE}
+
+fit = fevd(na.omit(obs), type = "GEV", method = "MLE", period.basis = "year", use.phi = TRUE)
+summary(fit)
+plot(fit, type="density", main="")
+
+fit_nonstationnaire1 = fevd(na.omit(obs), data = data.frame(year = na.omit(tmp)$year), scale.fun = ~1+year, location.fun = ~1+year, type = "GEV", method = "MLE", period.basis = "year", use.phi = TRUE)
+summary(fit_nonstationnaire1) 
+plot(fit_nonstationnaire1, type="density", main="")
+
+````
+question (e) :
+
+Calculons maintenant le 100-year return pour : 
+
+le modèle stationnaire.
+
+```` {r, fig.align='center', warning=FALSE}
+
+plot(fit, type="rl", main="")
+
+abline(v=100,col='red')
+
+abline(h=36.66,col='blue')
+
+````
+
+Donc, nous pouvons afirmer que Retrun level est envion 36.66 dans 100 ans.
+
+Le modèle non-stationnaire pour 2020.
+
+```` {r, fig.align='center', warning=FALSE}
+
+plot(fit_nonstationnaire1, type="rl", main="")
+
+````

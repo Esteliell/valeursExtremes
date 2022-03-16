@@ -166,3 +166,5 @@ Les commentaires :
 
 le modèle théorique est totalement loin du modèle emprique et cela est clair sur qq-plot ainsi que le graphe de la densité.En revanche, le modèle obtenu par approche block maxima a un AIC plus grande que celui la.
 
+
+
